@@ -1,54 +1,45 @@
 #  A simple blockchain-based website project for archiving news
-#  https://proglib.io/p/learn-blockchains-by-building-one/
 #
 #  TODO:
-#   working with database
-#   web app: frontend for every endpoint, and for /chain - some page wrapper with list and search option
-#   node authentication? signature (pk,sk)?
-#   trusted editors list? auto-parsing?
-#      .
-#   permissions:
+#   web app:     view-only frontend for /chain - some page wrapper with list and search option   --   for guests
+#   client app:  frontend to register and verify new transactions with convenience   --   for editors
+#
+#  TODO:
+#   network manager:
+#   - network interface which can broadcast automatically to all known nodes  --  task for network programmer
+#
+#   current permissions:
 #   - view chain:       everyone
 #   - node register:    everyone
-#   - node resolve:     everyone
-#   - add transaction:  editors only (pk,sk) //OR// everyone, but parsing is server-side
-#      .
-#   auto-sync:
-#   -  before /mine
-#   -  every X minutes (if 'replaced', mining stops immediately)
-#   -  remove any found texts from current_transactions
-#      .
-#   auto-mine:
-#   -  after /transactions/new, remember site/text hash, then if interrupted, look for matching content in next blocks:
-#    if it's found, remove that from current_transactions
-#      .
-#   transactions:
-#   - broadcast automatically to all known nodes (except self!)
-#      .
-#   identify nodes by ID, not IP
+#   - chain sync:       everyone
+#   - add transaction:  editors only -- with RSA signature verification
 #
 
-
 import sys
-
-from uuid import uuid4
 from flask import Flask, jsonify, request
 
-from blockchain import BlockChain
+from blockchain import BlockChain, TransactionsValidator
+
 
 app = Flask(__name__)
-node_id = str(uuid4()).replace('-', '')
 
 bchain = BlockChain()
 
 
 @app.route('/')
 def main_page():
-    return f'Node ID: {node_id}'
+    return 'Server online', 200
 
 
 @app.route('/mine', methods=['GET'])
 def mine():
+    if not bchain.current_transactions:
+        response = {
+            'message': "Nothing to mine",
+            'index': -1
+        }
+        return response, 401
+
     last_block = bchain.last_block
     last_proof = last_block['proof']
     proof = bchain.proof_of_work(last_proof)
@@ -59,24 +50,22 @@ def mine():
         'index': block['index'],
         'transactions': block['transactions'],
         'proof': block['proof'],
-        'previous_hash': block['previous_hash'],
+        'previous_hash': block['previous_hash']
     }
     return jsonify(response), 200
 
 
 @app.route('/transactions/new', methods=['POST'])
 def new_transaction():
-    # request to put a new transaction, including:  site, text
+    # request to put a new transaction
     values = request.get_json()
 
-    required = ['site', 'text']
-    if not values or not all(i in values for i in required):
-        return "Missing values", 400
-
-    index = bchain.new_transaction(values['site'], values['text'])
-
-    response = {'message': f'Transaction will be added to Block {index}'}
-    return jsonify(response), 201
+    if TransactionsValidator.valid_transaction(bchain, values):
+        index = bchain.new_transaction(values)
+        response = {'message': f'Transaction will be added to Block {index}'}
+    else:
+        response = {'message': 'Sorry, transaction denied.'}
+    return jsonify(response), 200
 
 
 @app.route('/chain', methods=['GET'])
@@ -124,13 +113,5 @@ def consensus():
     return jsonify(response), 200
 
 
-@app.route('/nodes/id', methods=['GET'])
-def node_id():
-    response = {
-        "id": node_id
-    }
-    return jsonify(response), 200
-
-
 if __name__ == '__main__':
-    app.run(port=int(sys.argv[1]) or 5000)
+    app.run(port=int(sys.argv[1]) if len(sys.argv) > 1 else 5000)
