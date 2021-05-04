@@ -242,17 +242,19 @@ class BlockChain(object):
                         votes = self.articles[recipient]['votes']
                         pos, neg = votes['pos'], votes['neg']
                         if not pos or not neg:
-                            continue
-                        if pos > (neg + pos) * POS_THRESHOLD and vote == "pos":
+                            self.balances[user] += VOTE_COST
+                            self.balances[self.articles[recipient]['author']] += self.articles[recipient]['deposit'] / (neg + pos)
+
+                        elif pos > (neg + pos) * POS_THRESHOLD and vote == "pos":
                             self.balances[user] += VOTE_COST * (neg / pos) * (1 - AUTHOR_PROFIT)
-                            self.balances[recipient['author']] += self.articles[recipient]['deposit']/pos + VOTE_COST * neg/pos * AUTHOR_PROFIT
+                            self.balances[self.articles[recipient]['author']] += self.articles[recipient]['deposit']/pos + VOTE_COST * neg/pos * AUTHOR_PROFIT
 
                         elif neg > (neg + pos) * NEG_THRESHOLD and vote == "neg":
                             self.balances[user] += (VOTE_COST * pos + self.articles[recipient]['deposit']) / neg
 
                         elif pos > (neg + pos) * (1 - NEG_THRESHOLD):  # neutral: money-back
                             self.balances[user] += VOTE_COST
-                            self.balances[recipient['author']] += self.articles[recipient]['deposit']/(neg+pos)
+                            self.balances[self.articles[recipient]['author']] += self.articles[recipient]['deposit']/(neg+pos)
 
     def get_balance(self, user):
         if self.balances.get(user) is not None:
