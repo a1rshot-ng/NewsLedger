@@ -113,5 +113,10 @@ def consensus():
     return jsonify(response), 200
 
 
+@app.route('/nodes/list', methods=['GET'])
+def nodes_list():
+    return jsonify(bchain.nodes), 200
+
+
 if __name__ == '__main__':
     app.run(port=int(sys.argv[1]) if len(sys.argv) > 1 else 5000)

@@ -23,7 +23,7 @@ TRANSACTIONS_TO_MINE = 1    # max transaction count to buffer before mining
 
 TRANSACTION_TIME = 15       # 15 seconds
 
-VOTES_FOR_NEWBIE = 20       # 20 votes required to accept a newbie
+VOTES_FOR_NEWBIE = 1       # 1 vote required to accept a newbie
 # TODO: consider accepting newbies based on votes percentage, instead of fixed count
 NEWBIE_COST = 20.0          # 20 tokens needed to accept a newbie (they are not spent when accepting)
 INITIAL_BALANCE = 50.0
@@ -48,6 +48,7 @@ class BlockChain(object):
         self.nodes = set()
         self.users = {ROOT_PUBKEY, }
         self.balances = {ROOT_PUBKEY: INITIAL_BALANCE, }
+        self.invites = {ROOT_PUBKEY: -1, }
         self.articles = dict()
 
         if os.path.exists(node_file):
@@ -111,7 +112,8 @@ class BlockChain(object):
 
     def register_node(self, address):
         parsed_url = urlparse(address)
-        self.nodes.add(parsed_url.netloc)
+        if parsed_url.netloc:
+            self.nodes.add(parsed_url.netloc)
 
     def save_nodes(self, filename):
         try:
@@ -201,10 +203,10 @@ class BlockChain(object):
 
     def update_state(self, offset=0):
         # articles & users handling
-        newbie_votes = dict()
         if offset == 0:
             self.users = {ROOT_PUBKEY, }
             self.balances = {ROOT_PUBKEY: INITIAL_BALANCE, }
+            self.invites = {ROOT_PUBKEY: -1, }
             self.articles = dict()
         for block in self.chain[offset:]:
             block_stamp = block['timestamp']
@@ -221,13 +223,13 @@ class BlockChain(object):
                     self.articles[recipient]['votes'][t['vote']] += 1
                 # newbies handling
                 elif t['operation'] == "accept_newbie":
-                    if newbie_votes.get(recipient):
-                        newbie_votes[recipient] += 1
-                        if newbie_votes[recipient] == VOTES_FOR_NEWBIE:
+                    if self.invites.get(recipient):
+                        self.invites[recipient] += 1
+                        if self.invites[recipient] == VOTES_FOR_NEWBIE:
                             self.users.add(recipient)
                             self.balances[recipient] = INITIAL_BALANCE
                         else:
-                            newbie_votes[recipient] = 1
+                            self.invites[recipient] = 1
         # votes handling
         for block in self.chain[offset:]:
             for t in block['transactions']:
