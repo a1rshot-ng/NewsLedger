@@ -31,6 +31,7 @@ class ChainClient(BlockChain):
                 f.write(self.privkey.export_key())
         except FileExistsError:
             logging.error("Could not save keys to file %r", keyfile)
+            return 1
 
     def load_keys(self, keyfile):
         try:
@@ -116,6 +117,6 @@ class ChainClient(BlockChain):
                     else:
                         logging.info("Pushed transaction to node %r", node)
                 except Exception as e:
-                    logging.warning("Error pushing to node %r: %s", e)
+                    logging.warning("Error pushing to node %r: %s", node, e)
         else:
             logging.warning("Trying to push invalid transaction")

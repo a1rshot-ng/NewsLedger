@@ -1,4 +1,4 @@
-#  Server-side BlockChain implementation for the project
+#  BlockChain logic implementation for the project
 
 import os
 import json
@@ -29,8 +29,8 @@ NEWBIE_COST = 20.0          # 20 tokens needed to accept a newbie (they are not 
 INITIAL_BALANCE = 50.0
 
 DEPOSIT_MIN = 20.0          # minimum deposit for new articles
-VOTING_TIME = 60*60*24*7    # 7 days to vote
-CONFIRM_TIME = 60*60*24     # 1 day to confirm
+VOTING_TIME = 5*60 # 60*60*24*7    # 7 days to vote
+CONFIRM_TIME = 2*60 # 60*60*24     # 1 day to confirm
 VOTE_COST = 1.0             # 1 token to vote
 AUTHOR_PROFIT = 0.1         # 10 % of tokens for 'negative' go to author
 POS_THRESHOLD = 0.7         # 70 % positive votes -> trustworthy article
@@ -255,6 +255,10 @@ class BlockChain(object):
                         elif pos > (neg + pos) * (1 - NEG_THRESHOLD):  # neutral: money-back
                             self.balances[user] += VOTE_COST
                             self.balances[self.articles[recipient]['author']] += self.articles[recipient]['deposit']/(neg+pos)
+                elif t['operation'] == "register_article" and \
+                        sum(self.articles[t['recipient']]['votes'][i] for i in ('pos', 'neg')) == 0 and \
+                        time() - self.articles[recipient]['timestamp'] > VOTING_TIME + CONFIRM_TIME:
+                    self.balances[t['sender']] += self.articles[t['recipient']]['deposit']
 
     def get_balance(self, user):
         if self.balances.get(user) is not None:

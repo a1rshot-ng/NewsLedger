@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 #  A simple blockchain-based website project for archiving news
 #
 #  TODO:
