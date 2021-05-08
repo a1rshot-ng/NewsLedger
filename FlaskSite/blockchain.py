@@ -14,7 +14,8 @@ from time import time
 from urllib.parse import urlparse
 
 
-# CONFIG_FILE = "config.py"   # TODO: import settings from config file
+# CONFIG_FILE = "config.py"
+# TODO: import settings from config file?
 
 DIFFICULTY = 4              # approx. 1-2 seconds to mine a block
 RSA_EXP = 65537             # exponent used in RSA algorithm
@@ -23,20 +24,21 @@ TRANSACTIONS_TO_MINE = 1    # max transaction count to buffer before mining
 
 TRANSACTION_TIME = 15       # 15 seconds
 
-VOTES_FOR_NEWBIE = 1       # 1 vote required to accept a newbie
-# TODO: consider accepting newbies based on votes percentage, instead of fixed count
+VOTES_FOR_NEWBIE = 20       # 20 votes required to accept a newbie
+# TODO: consider accepting newbies based on votes percentage, instead of fixed count?
 NEWBIE_COST = 20.0          # 20 tokens needed to accept a newbie (they are not spent when accepting)
 INITIAL_BALANCE = 50.0
 
 DEPOSIT_MIN = 20.0          # minimum deposit for new articles
-VOTING_TIME = 5*60 # 60*60*24*7    # 7 days to vote
+VOTING_TIME = 3*60 # 60*60*24*7    # 7 days to vote
 CONFIRM_TIME = 2*60 # 60*60*24     # 1 day to confirm
 VOTE_COST = 1.0             # 1 token to vote
 AUTHOR_PROFIT = 0.1         # 10 % of tokens for 'negative' go to author
 POS_THRESHOLD = 0.7         # 70 % positive votes -> trustworthy article
 NEG_THRESHOLD = 0.6         # 60 % negative votes -> fake article
 
-ROOT_PUBKEY = 'tdQhK36B3249ymG5rvC3YbbfWPFLuDt+gEo0seg6GlTPtAfQjQMCf4bC331NBFTE4UqmBLLVUbvQplsEq1Lj8BwInnhXt696ypM+lL3vtfP11kCfGlcAJ3jfsVSiFDfRuQM1lEhauU8NUAC6VPrRWdvrsogYsswKMD24OP5bHCAkS+KGDEymGz+p/ZsdCZ9Rh4yk4rQTNp0p9Eo1ZuuKSnaC76kPpkJ/IdghN24ufXepvq5DpPaD9bocOwOZiSMvEi7NEIXRV/XyFuk7RS6hVD/WAXnttUjsc9eZ8842j8yJEl0d5bm+iF/keUnhxcCMWIx6X3DzZfJif3/UhERm2Q=='
+with open('root-key.txt') as f:
+    ROOT_PUBKEY = f.read().replace('\n', '')
 
 
 class BlockChain(object):
@@ -56,6 +58,7 @@ class BlockChain(object):
 
         if os.path.exists(chain_file):
             self.load_chain(chain_file)
+            assert self.valid_chain(self.chain)
             self.update_state()
         if not self.chain:
             self.new_block(previous_hash=1, proof=100)
@@ -223,13 +226,11 @@ class BlockChain(object):
                     self.articles[recipient]['votes'][t['vote']] += 1
                 # newbies handling
                 elif t['operation'] == "accept_newbie":
-                    if self.invites.get(recipient):
-                        self.invites[recipient] += 1
-                        if self.invites[recipient] == VOTES_FOR_NEWBIE:
-                            self.users.add(recipient)
-                            self.balances[recipient] = INITIAL_BALANCE
-                        else:
-                            self.invites[recipient] = 1
+                    if self.invites.get(recipient) and self.invites[recipient] < min(len(self.users), VOTES_FOR_NEWBIE): self.invites[recipient] += 1
+                    else: self.invites[recipient] = 1
+                    if self.invites[recipient] == min(len(self.users), VOTES_FOR_NEWBIE):
+                        self.users.add(recipient)
+                        self.balances[recipient] = INITIAL_BALANCE
         # votes handling
         for block in self.chain[offset:]:
             for t in block['transactions']:
@@ -403,11 +404,11 @@ class TransactionsValidator:
     def valid_newbie(bchain, values):
         voter = values['sender']
         newbie = values['recipient']
-        if newbie not in bchain.users:
+        if newbie in bchain.users:
             logging.info(f"Transaction denied: user has already been accepted\n{values}")
             return False
 
-        # TODO: we planned to check if users are from the same publisher
+        # TODO: we might want to check if users are from the same publisher
 
         # check if acceptor hasn't been "banned"
         if bchain.get_balance(voter) < NEWBIE_COST:

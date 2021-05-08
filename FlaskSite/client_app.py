@@ -25,13 +25,13 @@ class ClientApp:
         self.chain_tab = Frame(self.tab_control)
         self.profile_tab = Frame(self.tab_control)
         self.article_tab = Frame(self.tab_control)
-        self.invite_tab = Frame(self.tab_control)
+        self.users_tab = Frame(self.tab_control)
         self.nodes_tab = Frame(self.tab_control)
 
         self.tab_control.add(self.chain_tab, text='Chain')
         self.tab_control.add(self.profile_tab, text='Profile')
         self.tab_control.add(self.article_tab, text='Article')
-        self.tab_control.add(self.invite_tab, text='Invite')
+        self.tab_control.add(self.users_tab, text='Invite')
         self.tab_control.add(self.nodes_tab, text='Nodes')
 
     def chain_init(self):
@@ -64,11 +64,11 @@ class ClientApp:
                 tstamp = Label(transaction, text=datetime.fromtimestamp(t['timestamp']).strftime('%d.%m.%Y %H:%M'), anchor='ne')
                 tstamp.pack(side=RIGHT, fill=BOTH, expand=False)
 
-                recipient = Label(transaction, text=f"{t['sender'][:6]}...   -->   {t['recipient']}", width=32, anchor='w')
+                recipient = Label(transaction, text=f"{t['sender'][:6]}...   -->   {t['recipient'] if len(t['recipient']) < 24 else t['recipient'][:6]+'...'}", width=24, anchor='w')
                 recipient.pack(side=LEFT, fill=X, expand=False)
 
-                info_btn = Button(transaction, text="Info", command=self.func_handler(self.transaction_info, t))
-                info_btn.pack(side=RIGHT, fill=X, expand=False)
+                info_btn = Button(transaction, text="Info", command=self.func_handler(self.show_text, str(t)))
+                info_btn.pack(side=RIGHT, fill=X, expand=False, padx=20)
 
                 transaction.pack_propagate(0)
                 transaction.pack(fill=BOTH, expand=True)
@@ -90,7 +90,7 @@ class ClientApp:
         my_key = b64encode(int.to_bytes(self.client.pubkey.n, KEY_LEN//8, 'big')).decode('utf-8')
         profile_label = Label(profile_header, text=f"Profile:  {my_key[:6]}...{my_key[-4:]}", anchor='w')
         profile_label.pack(side=LEFT, expand=False, padx=20)
-        profile_label.bind("<Button-1>", lambda e: messagebox.showinfo("Key info", f"{my_key}"))
+        profile_label.bind("<Button-1>", self.func_handler(self.show_text, my_key))
         mkbtn = Button(profile_header, text="Manage keys...", command=self.func_handler(self.managekeys))
         mkbtn.pack(side=RIGHT, fill=Y, expand=False)
         profile_header.pack(fill=BOTH, expand=False)
@@ -106,10 +106,10 @@ class ClientApp:
         account_info = LabelFrame(inner_frame, text="Account Info", width=620, height=90, highlightbackground='gray', highlightthickness=1)
         key_label = Label(account_info, text=f"Public key:  {my_key[:6]}...{my_key[-4:]}", anchor='w')
         key_label.pack(fill=X, expand=False, padx=50)
-        key_label.bind("<Button-1>", lambda e: messagebox.showinfo("Key info", f"{my_key}"))
+        key_label.bind("<Button-1>", self.func_handler(self.show_text, my_key))
         invites = self.client.invites.get(my_key)
         if not invites: invites = 0
-        status_label = Label(account_info, text=f"Status:  {'ACTIVE' if my_key in self.client.users else 'INACTIVE (%d / %d invites)' % (invites, VOTES_FOR_NEWBIE)}", anchor='w')
+        status_label = Label(account_info, text=f"Status:  {'ACTIVE' if my_key in self.client.users else 'INACTIVE (%d / %d invites)' % (invites, min(len(self.client.users), VOTES_FOR_NEWBIE))}", anchor='w')
         status_label.pack(fill=X, expand=False, padx=50)
         balance_label = Label(account_info, text=f"Balance:  {self.client.balances.get(my_key)}", anchor='w')
         balance_label.pack(fill=X, expand=False, padx=50)
@@ -117,7 +117,7 @@ class ClientApp:
         account_info.pack(fill=BOTH, expand=True)
 
         my_arts = LabelFrame(inner_frame, text="My articles")
-        for art_name, article in self.client.articles.items():
+        for art_name, article in sorted(self.client.articles.items(), key=lambda x: x[1]['timestamp'], reverse=True):
             if article['author'] == my_key:
                 self.show_article(my_arts, art_name, article)
 
@@ -157,7 +157,7 @@ class ClientApp:
 
         pend_arts = LabelFrame(inner_frame, text="Confirm your votes")
         rec_arts = LabelFrame(inner_frame, text="Recent articles")
-        for art_name, article in self.client.articles.items():
+        for art_name, article in sorted(self.client.articles.items(), key=lambda x: x[1]['timestamp'], reverse=True):
             self.show_article(rec_arts, art_name, article)
             if check_valid_confirm():
                 self.show_article(pend_arts, art_name, article)
@@ -172,49 +172,110 @@ class ClientApp:
         canvas.config(scrollregion=canvas.bbox('all'), yscrollcommand=scroll.set)
         art_body.pack(fill=BOTH, expand=True)
 
+    def users_init(self):
+        for child in self.users_tab.winfo_children():
+            child.destroy()
 
-    def invite_init(self):
-        pass
+        def check_valid_invite(user):
+            t = self.client.create_transaction()
+            t = self.client.vote_for_newbie(t, user)
+            return TransactionsValidator.valid_newbie(self.client, t)
+
+        users_header = Frame(self.users_tab, highlightbackground='gray', highlightthickness=1)
+        Label(users_header, text="Users & invites list", anchor='w').pack(side=LEFT, fill=BOTH, expand=True, padx=20)
+        Button(users_header, text="Invite new user...", command=self.func_handler(self.invite_user)).pack(side=RIGHT, fill=Y, expand=False)
+        users_header.pack(fill=BOTH, expand=False)
+
+        inv_frame = LabelFrame(self.users_tab, text="Pending invites", highlightbackground='gray', highlightthickness=1)
+        scroll = Scrollbar(inv_frame, orient=VERTICAL)
+        canvas = Canvas(inv_frame)
+        scroll.pack(fill=Y, side=RIGHT, expand=False)
+        scroll.config(command=canvas.yview)
+        inner = Frame(canvas)
+
+        for username, count in self.client.invites.items():
+            if count > 0 and username not in self.client.users:
+                user_elem = Frame(inner, width=620, height=40, highlightbackground='gray', highlightthickness=1)
+                user_label = Label(user_elem, text=f"{username[:6]}...{username[-4:]}", anchor='w')
+                user_label.pack(side=LEFT, padx=20)
+                user_label.bind("<Button-1>", self.func_handler(self.show_text, username))
+                inv_btn = Button(user_elem, text="Accept", command=self.func_handler(self.invite_user, username))
+                inv_btn.pack(side=RIGHT, padx=20)
+                if not check_valid_invite(username):
+                    inv_btn.config(state=DISABLED)
+                Label(user_elem, text=f"Votes:  {count} / {min(len(self.client.users), VOTES_FOR_NEWBIE)}", anchor='w').pack(side=RIGHT, padx=20)
+                user_elem.pack_propagate(0)
+                user_elem.pack(fill=BOTH, expand=False)
+
+        inner.pack(fill=BOTH, expand=True)
+        inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
+
+        canvas.create_window((0, 0), window=inner, anchor="nw")
+        canvas.pack(fill=BOTH, expand=True)
+        canvas.config(scrollregion=canvas.bbox('all'), yscrollcommand=scroll.set)
+
+        inv_frame.pack_propagate(0)
+        inv_frame.pack(fill=BOTH, expand=True)
+
+        users_frame = LabelFrame(self.users_tab, text="Active users", highlightbackground='gray', highlightthickness=1)
+        scroll = Scrollbar(users_frame, orient=VERTICAL)
+        canvas = Canvas(users_frame)
+        scroll.pack(fill=Y, side=RIGHT, expand=False)
+        scroll.config(command=canvas.yview)
+        inner = Frame(canvas)
+
+        for username in sorted(self.client.users, key=lambda x: self.client.balances.get(x), reverse=True):
+            user_elem = Frame(inner, width=620, height=40, highlightbackground='gray', highlightthickness=1)
+            user_label = Label(user_elem, text=f"{username[:6]}...{username[-4:]}", anchor='w')
+            user_label.pack(side=LEFT, padx=20)
+            user_label.bind("<Button-1>", self.func_handler(self.show_text, username))
+            Label(user_elem, text=f"Articles:  {len([i for i in self.client.articles.values() if i['author'] == username])}        Balance:  {self.client.balances.get(username)}", anchor='e').pack(side=RIGHT, padx=80)
+            user_elem.pack_propagate(0)
+            user_elem.pack(fill=BOTH, expand=False)
+
+        inner.pack(fill=BOTH, expand=True)
+        inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
+
+        canvas.create_window((0, 0), window=inner, anchor="nw")
+        canvas.pack(fill=BOTH, expand=True)
+        canvas.config(scrollregion=canvas.bbox('all'), yscrollcommand=scroll.set)
+
+        users_frame.pack_propagate(0)
+        users_frame.pack(fill=BOTH, expand=True)
 
     def nodes_init(self):
         for child in self.nodes_tab.winfo_children():
             child.destroy()
 
         nodes_header = Frame(self.nodes_tab, highlightbackground='gray', highlightthickness=1)
-        nodes_label = Label(nodes_header, text="Nodes list", anchor='w')
-        nodes_label.pack(side=LEFT, fill=BOTH, expand=True, padx=20)
-
-        new_btn = Button(nodes_header, text="Import", command=self.func_handler(self.new_node))
-        new_btn.pack(side=RIGHT, fill=Y, expand=False)
+        Label(nodes_header, text="Nodes list", anchor='w').pack(side=LEFT, fill=BOTH, expand=True, padx=20)
+        Button(nodes_header, text="Import", command=self.func_handler(self.new_node)).pack(side=RIGHT, fill=Y, expand=False)
         nodes_header.pack(fill=BOTH, expand=False)
 
         nodes_frame = Frame(self.nodes_tab, highlightbackground='gray', highlightthickness=1)
 
         scroll = Scrollbar(nodes_frame, orient=VERTICAL)
-        nodes_canvas = Canvas(nodes_frame)
+        canvas = Canvas(nodes_frame)
         scroll.pack(fill=Y, side=RIGHT, expand=False)
-        scroll.config(command=nodes_canvas.yview)
+        scroll.config(command=canvas.yview)
 
-        inner_frame = Frame(nodes_canvas)
+        inner_frame = Frame(canvas)
 
         for node in self.client.nodes:
             node_elem = Frame(inner_frame, width=620, height=20, highlightbackground='gray', highlightthickness=1)
 
-            addr = Label(node_elem, text=node, anchor='w')
-            addr.pack(side=LEFT, fill=BOTH, expand=False)
-
-            del_btn = Button(node_elem, text="X", command=self.func_handler(self.del_node, node))
-            del_btn.pack(side=RIGHT, fill=Y, expand=False)
+            Label(node_elem, text=node, anchor='w').pack(side=LEFT, fill=BOTH, expand=False)
+            Button(node_elem, text="X", command=self.func_handler(self.del_node, node)).pack(side=RIGHT, fill=Y, expand=False)
 
             node_elem.pack_propagate(0)
             node_elem.pack(fill=BOTH, expand=False)
 
         inner_frame.pack(fill=BOTH, expand=True)
-        inner_frame.bind("<Configure>", lambda e: nodes_canvas.configure(scrollregion=nodes_canvas.bbox('all')))
+        inner_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
 
-        nodes_canvas.create_window((0, 0), window=inner_frame, anchor="nw")
-        nodes_canvas.pack(fill=BOTH, expand=True)
-        nodes_canvas.config(scrollregion=nodes_canvas.bbox('all'), yscrollcommand=scroll.set)
+        canvas.create_window((0, 0), window=inner_frame, anchor="nw")
+        canvas.pack(fill=BOTH, expand=True)
+        canvas.config(scrollregion=canvas.bbox('all'), yscrollcommand=scroll.set)
 
         nodes_frame.pack(fill=BOTH, expand=True)
 
@@ -223,8 +284,14 @@ class ClientApp:
         return lambda e=None: func(*args)
 
     @staticmethod
-    def transaction_info(t):
-        messagebox.showinfo(f"Transaction info", repr(t))
+    def show_text(text):
+        popup = Tk()
+        popup.title("Info")
+        popup.geometry('300x200')
+        txt = Text(popup)
+        txt.insert(END, text)
+        txt.pack(fill=BOTH, expand=True)
+        popup.mainloop()
 
     def update_state(self):
         self.client.update_state()
@@ -232,11 +299,11 @@ class ClientApp:
         self.chain_init()
         self.profile_init()
         self.article_init()
-        self.invite_init()
+        self.users_init()
         if res:
-            messagebox.showinfo("Chain update", "Chain successfully updated23!")
+            messagebox.showinfo("Chain update", "Chain successfully updated!")
         else:
-            messagebox.showwarning("Chain update", "Could not update chain.")
+            messagebox.showinfo("Chain update", "Chain is up to date.")
 
     def managekeys(self):
         popup = Tk()
@@ -246,7 +313,7 @@ class ClientApp:
         my_key = b64encode(int.to_bytes(self.client.pubkey.n, KEY_LEN//8, 'big')).decode('utf-8')
         key_label = Label(popup, text=f"Public key:  {my_key[:6]}...{my_key[-4:]}", anchor='w')
         key_label.pack(fill=X, expand=False, padx=40)
-        key_label.bind("<Button-1>", lambda e: messagebox.showinfo("Key info", f"{my_key}"))
+        key_label.bind("<Button-1>", self.func_handler(self.show_text, my_key))
 
         def import_keys():
             filename = filedialog.askopenfilename()
@@ -259,7 +326,7 @@ class ClientApp:
                 self.chain_init()
                 self.profile_init()
                 self.article_init()
-                self.invite_init()
+                self.users_init()
                 self.nodes_init()
                 popup.destroy()
                 messagebox.showinfo("Key import", "Keys imported successfully.")
@@ -378,7 +445,7 @@ class ClientApp:
             if not TransactionsValidator.valid_transaction(self.client, t):
                 popup.destroy()
                 logging.error("Invalid transaction encountered! Outdated chain?")
-                messagebox.showerror("Error", "Invalid transaction encountered. Consider updating chain?")
+                messagebox.showerror("Error", "Invalid transaction. You may have insufficient permissions or outdated chain.")
                 return
             self.client.push_transaction(t)
             self.chain_init()
@@ -400,13 +467,51 @@ class ClientApp:
 
         if not TransactionsValidator.valid_transaction(self.client, t):
             logging.error("Invalid transaction encountered! Outdated chain?")
-            messagebox.showerror("Error", "Invalid transaction encountered. Consider updating chain?")
+            messagebox.showerror("Error", "Invalid transaction. You may have insufficient permissions or outdated chain.")
             return
         self.client.push_transaction(t)
         self.chain_init()
         self.profile_init()
         self.article_init()
         messagebox.showinfo("Confirm vote", "Vote confirmed successfully.")
+
+    def invite_user(self, user=None):
+        if user is None:
+            popup = Tk()
+            popup.title("Invite new user")
+            popup.geometry('300x400')
+
+            Label(popup, text="User key (base64):").pack()
+            inputtxt = Text(popup, height=20, width=40)
+            inputtxt.insert(END, ROOT_PUBKEY[:24] + "...")
+            inputtxt.pack()
+
+            def invite():
+                entered_user = inputtxt.get(1.0, 'end-1c')
+                popup.destroy()
+                self.invite_user(entered_user)
+
+            enter_btn = Button(popup, text=" Invite ", command=invite)
+            enter_btn.pack(side=RIGHT, expand=False)
+
+            cancel_btn = Button(popup, text="Cancel", command=lambda: popup.destroy())
+            cancel_btn.pack(side=LEFT, expand=False)
+
+            popup.mainloop()
+        else:
+            t = self.client.create_transaction()
+            t = self.client.vote_for_newbie(t, user)
+            t = self.client.sign_transaction(t)
+            if not TransactionsValidator.valid_transaction(self.client, t):
+                logging.warning("Invalid transaction while inviting user! Misspelled user public key?")
+                messagebox.showerror("Error", "Invalid transaction. You may have insufficient permissions or already invited this user.")
+                return
+            self.client.push_transaction(t)
+            self.chain_init()
+            self.profile_init()
+            self.article_init()
+            self.users_init()
+            messagebox.showinfo("Accept user", f"User invited successfully")
 
     def show_article(self, root, art_name, article):
         article_frame = Frame(root, width=615, height=90, highlightbackground='gray', highlightthickness=1)
@@ -472,7 +577,7 @@ class ClientApp:
         self.chain_init()
         self.profile_init()
         self.article_init()
-        self.invite_init()
+        self.users_init()
         self.nodes_init()
 
         self.tab_control.pack(fill=BOTH, expand=True)

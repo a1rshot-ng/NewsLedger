@@ -57,6 +57,7 @@ class ChainClient(BlockChain):
         except Exception as e:
             self.nonces = dict()
             logging.error("Could not load nonces from %r: %s", nonce_file, e)
+            self.save_nonces()
 
     def create_transaction(self):
         transaction = {

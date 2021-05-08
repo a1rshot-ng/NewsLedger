@@ -1,1 +1,1 @@
-{'new_art_tst': ('pos', '6659d62d15d6f08ddaee44069ef03c513d6c885aac34323ff8e5f6172b4cb83f'), 'article_1338': ('neg', '983d08602d91fdbb3affcee7ced7fa68b98d85d2d99a4503db0beff3d60f7deb'), 'another test': ('neg', '94a7dd871bad92b324c42b20f7534a4a0746bf7b3e0f24df903089bb7280f97e'), 'yet an art 2': ('pos', '3d2475c21a5cd3a3f940cfdb8385599f6afacc6dda3bc6d7e906c637fa8516c0')}
+{}

@@ -2,14 +2,6 @@
 
 #  A simple blockchain-based website project for archiving news
 #
-#  TODO:
-#   web app:     view-only frontend for /chain - some page wrapper with list and search option   --   for guests
-#   client app:  frontend to register and verify new transactions with convenience   --   for editors
-#
-#  TODO:
-#   network manager:
-#   - network interface which can broadcast automatically to all known nodes  --  task for network programmer
-#
 #   current permissions:
 #   - view chain:       everyone
 #   - node register:    everyone
