@@ -15,7 +15,6 @@ from urllib.parse import urlparse
 
 
 # CONFIG_FILE = "config.py"
-# TODO: import settings from config file?
 
 DIFFICULTY = 4              # approx. 1-2 seconds to mine a block
 RSA_EXP = 65537             # exponent used in RSA algorithm
@@ -24,14 +23,13 @@ TRANSACTIONS_TO_MINE = 1    # max transaction count to buffer before mining
 
 TRANSACTION_TIME = 15       # 15 seconds
 
-VOTES_FOR_NEWBIE = 20       # 20 votes required to accept a newbie
-# TODO: consider accepting newbies based on votes percentage, instead of fixed count?
+VOTES_FOR_NEWBIE = 0.6       # 60 % votes required to accept a newbie
 NEWBIE_COST = 20.0          # 20 tokens needed to accept a newbie (they are not spent when accepting)
 INITIAL_BALANCE = 50.0
 
 DEPOSIT_MIN = 20.0          # minimum deposit for new articles
-VOTING_TIME = 3*60 # 60*60*24*7    # 7 days to vote
-CONFIRM_TIME = 2*60 # 60*60*24     # 1 day to confirm
+VOTING_TIME = 2*60  # 60*60*24*7    # 7 days to vote
+CONFIRM_TIME = 1*60  # 60*60*24     # 1 day to confirm
 VOTE_COST = 1.0             # 1 token to vote
 AUTHOR_PROFIT = 0.1         # 10 % of tokens for 'negative' go to author
 POS_THRESHOLD = 0.7         # 70 % positive votes -> trustworthy article
@@ -226,9 +224,9 @@ class BlockChain(object):
                     self.articles[recipient]['votes'][t['vote']] += 1
                 # newbies handling
                 elif t['operation'] == "accept_newbie":
-                    if self.invites.get(recipient) and self.invites[recipient] < min(len(self.users), VOTES_FOR_NEWBIE): self.invites[recipient] += 1
+                    if self.invites.get(recipient) and self.invites[recipient] < round(len(self.users) * VOTES_FOR_NEWBIE): self.invites[recipient] += 1
                     else: self.invites[recipient] = 1
-                    if self.invites[recipient] == min(len(self.users), VOTES_FOR_NEWBIE):
+                    if self.invites[recipient] == round(len(self.users) * VOTES_FOR_NEWBIE):
                         self.users.add(recipient)
                         self.balances[recipient] = INITIAL_BALANCE
         # votes handling

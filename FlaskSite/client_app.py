@@ -109,7 +109,7 @@ class ClientApp:
         key_label.bind("<Button-1>", self.func_handler(self.show_text, my_key))
         invites = self.client.invites.get(my_key)
         if not invites: invites = 0
-        status_label = Label(account_info, text=f"Status:  {'ACTIVE' if my_key in self.client.users else 'INACTIVE (%d / %d invites)' % (invites, min(len(self.client.users), VOTES_FOR_NEWBIE))}", anchor='w')
+        status_label = Label(account_info, text=f"Status:  {'ACTIVE' if my_key in self.client.users else 'INACTIVE (%d / %d invites)' % (invites, round(len(self.client.users) * VOTES_FOR_NEWBIE))}", anchor='w')
         status_label.pack(fill=X, expand=False, padx=50)
         balance_label = Label(account_info, text=f"Balance:  {self.client.balances.get(my_key)}", anchor='w')
         balance_label.pack(fill=X, expand=False, padx=50)
@@ -203,7 +203,7 @@ class ClientApp:
                 inv_btn.pack(side=RIGHT, padx=20)
                 if not check_valid_invite(username):
                     inv_btn.config(state=DISABLED)
-                Label(user_elem, text=f"Votes:  {count} / {min(len(self.client.users), VOTES_FOR_NEWBIE)}", anchor='w').pack(side=RIGHT, padx=20)
+                Label(user_elem, text=f"Votes:  {count} / {round(len(self.client.users) * VOTES_FOR_NEWBIE)}", anchor='w').pack(side=RIGHT, padx=20)
                 user_elem.pack_propagate(0)
                 user_elem.pack(fill=BOTH, expand=False)
 
