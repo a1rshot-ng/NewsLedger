@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-# Client-side app for the project
+# Client-side app for the project, written on Tkinter
 
 import webbrowser
 

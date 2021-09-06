@@ -121,3 +121,4 @@ class ChainClient(BlockChain):
                     logging.warning("Error pushing to node %r: %s", node, e)
         else:
             logging.warning("Trying to push invalid transaction")
+

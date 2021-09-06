@@ -4,7 +4,11 @@
     <option name="enabled" value="true" />
   </component>
   <component name="NewModuleRootManager">
-    <content url="file://$MODULE_DIR$" />
+    <content url="file://$MODULE_DIR$">
+      <excludeFolder url="file://$MODULE_DIR$/inst1" />
+      <excludeFolder url="file://$MODULE_DIR$/inst2" />
+      <excludeFolder url="file://$MODULE_DIR$/inst3" />
+    </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>

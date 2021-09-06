@@ -28,8 +28,8 @@ NEWBIE_COST = 20.0          # 20 tokens needed to accept a newbie (they are not 
 INITIAL_BALANCE = 50.0
 
 DEPOSIT_MIN = 20.0          # minimum deposit for new articles
-VOTING_TIME = 2*60  # 60*60*24*7    # 7 days to vote
-CONFIRM_TIME = 1*60  # 60*60*24     # 1 day to confirm
+VOTING_TIME = 2*60          # 60*60*24*7    # 7 days to vote (2 min for test)
+CONFIRM_TIME = 1*60         # 60*60*24     # 1 day to confirm (1 min for test)
 VOTE_COST = 1.0             # 1 token to vote
 AUTHOR_PROFIT = 0.1         # 10 % of tokens for 'negative' go to author
 POS_THRESHOLD = 0.7         # 70 % positive votes -> trustworthy article

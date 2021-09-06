@@ -1,12 +1,13 @@
 #!/usr/bin/python3
 
-#  A simple blockchain-based website project for archiving news
+#   Blockchain-based project for archiving news
 #
 #   current permissions:
 #   - view chain:       everyone
 #   - node register:    everyone
 #   - chain sync:       everyone
 #   - add transaction:  editors only -- with RSA signature verification
+#
 #
 
 import sys
